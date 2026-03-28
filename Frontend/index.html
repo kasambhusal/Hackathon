@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dementia Detection AI</title>
+    <style>
+        /* Modern CSS Styling */
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text: #1F2937;
+            --danger: #EF4444;
+            --success: #10B981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        h1 { margin-top: 0; font-size: 1.5rem; color: var(--primary); }
+        p { color: #6B7280; font-size: 0.95rem; margin-bottom: 2rem; }
+
+        .tabs { display: flex; margin-bottom: 1.5rem; border-bottom: 2px solid #E5E7EB; }
+        .tab { flex: 1; padding: 0.75rem; cursor: pointer; font-weight: 600; color: #9CA3AF; transition: 0.3s; }
+        .tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); margin-bottom: -2px; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* Button Styling */
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s;
+            margin-top: 1rem;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+
+        /* Recording Animation */
+        .record-btn {
+            background-color: var(--danger);
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin: 0 auto;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 4px solid #FEE2E2;
+        }
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 4px solid #F3F4F6;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* File Upload Styling */
+        input[type="file"] { margin: 1rem 0; }
+
+        /* Results Card */
+        #result-card {
+            margin-top: 2rem; padding: 1.5rem;
+            border-radius: 0.5rem; display: none;
+            background-color: #F9FAFB; border: 1px solid #E5E7EB;
+        }
+        .status { font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .dementia-yes { color: var(--danger); }
+        .dementia-no { color: var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Dementia Detection AI</h1>
+    <p>Upload a voice recording or record directly from your microphone to analyze vocal patterns.</p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('upload')">Upload File</div>
+        <div class="tab" onclick="switchTab('record')">Record Audio</div>
+    </div>
+
+    <div id="upload-panel" class="panel active">
+        <input type="file" id="audio-file" accept="audio/*">
+        <button id="upload-btn" onclick="processAudioFile()">Analyze Uploaded Audio</button>
+    </div>
+
+    <div id="record-panel" class="panel">
+        <div id="record-btn" class="record-btn" onclick="toggleRecording()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14ZM17.3 11C17.3 14 14.76 16.1 12 16.1C9.24 16.1 6.7 14 6.7 11H5C5 14.41 7.72 17.23 11 17.72V21H13V17.72C16.28 17.23 19 14.41 19 11H17.3Z"/>
+            </svg>
+        </div>
+        <p id="record-status" style="margin-top: 1rem;">Click to start recording</p>
+    </div>
+
+    <div id="loader" class="loader"></div>
+    <p id="loading-text" style="display: none;">AI is analyzing the audio patterns...</p>
+
+    <div id="result-card">
+        <div id="result-status" class="status"></div>
+        <div id="result-confidence"></div>
+        <details style="margin-top: 1rem; text-align: left; cursor: pointer;">
+            <summary>View raw JSON</summary>
+            <pre id="json-output" style="background: #e5e7eb; padding: 10px; border-radius: 5px; font-size: 0.8rem; overflow-x: auto;"></pre>
+        </details>
+    </div>
+</div>
+
+<script>
+    // --- UI Logic ---
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        
+        if (tabName === 'upload') {
+            document.querySelectorAll('.tab')[0].classList.add('active');
+            document.getElementById('upload-panel').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab')[1].classList.add('active');
+            document.getElementById('record-panel').classList.add('active');
+        }
+        hideResults();
+    }
+
+    function showLoading(show) {
+        document.getElementById('loader').style.display = show ? 'block' : 'none';
+        document.getElementById('loading-text').style.display = show ? 'block' : 'none';
+        document.getElementById('upload-btn').disabled = show;
+    }
+
+    function hideResults() {
+        document.getElementById('result-card').style.display = 'none';
+    }
+
+    function displayResults(data) {
+        showLoading(false);
+        const card = document.getElementById('result-card');
+        const statusText = document.getElementById('result-status');
+        const confText = document.getElementById('result-confidence');
+        
+        card.style.display = 'block';
+        document.getElementById('json-output').textContent = JSON.stringify(data, null, 2);
+
+        if (data.error) {
+            statusText.textContent = "Error occurred";
+            statusText.className = "status dementia-yes";
+            confText.textContent = data.error;
+            return;
+        }
+
+        if (data.has_dementia) {
+            statusText.textContent = "Potential Indicators Detected";
+            statusText.className = "status dementia-yes";
+        } else {
+            statusText.textContent = "No Indicators Detected";
+            statusText.className = "status dementia-no";
+        }
+        confText.textContent = `Confidence: ${data.confidence_percentage}`;
+    }
+
+    // --- API Logic ---
+    async function sendToAPI(audioBlob, filename) {
+        showLoading(true);
+        hideResults();
+
+        const formData = new FormData();
+        formData.append("file", audioBlob, filename);
+
+        try {
+            // This is where the frontend talks to your FastAPI backend!
+            const response = await fetch("http://localhost:8000/predict", {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json();
+            displayResults(result);
+        } catch (error) {
+            console.error("API Error:", error);
+            showLoading(false);
+            alert("Could not connect to the API. Is your Python server running?");
+        }
+    }
+
+    function processAudioFile() {
+        const fileInput = document.getElementById('audio-file');
+        if (fileInput.files.length === 0) {
+            alert("Please select a file first.");
+            return;
+        }
+        sendToAPI(fileInput.files[0], fileInput.files[0].name);
+    }
+
+    // --- Audio Recording Logic ---
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    async function toggleRecording() {
+        const btn = document.getElementById('record-btn');
+        const statusText = document.getElementById('record-status');
+
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioChunks = [];
+                    sendToAPI(audioBlob, "browser_recording.wav");
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                btn.classList.add('recording');
+                statusText.textContent = "Recording... Click to stop & analyze";
+            } catch (err) {
+                alert("Please allow microphone access to use this feature.");
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            btn.classList.remove('recording');
+            statusText.textContent = "Processing audio...";
+            
+            // Turn off mic tracks to save battery
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+    }
+</script>
+</body>
+</html>
