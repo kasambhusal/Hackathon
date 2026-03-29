@@ -5,3 +5,5 @@ torch
 librosa
 soundfile
 python-multipart
+google-genai
+python-dotenv
